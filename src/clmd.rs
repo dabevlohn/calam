@@ -30,5 +30,4 @@ pub fn clam_scan(host: String, port: u16, file_path: PathBuf) {
     } else {
         println!("The file is infected!");
     }
-    //assert!(!file_clean);
 }
