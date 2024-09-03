@@ -1,33 +1,76 @@
-use clamav_client::{clean, scan_file, Tcp};
+use std::error::Error;
+use std::fs::File;
+use std::io::prelude::*;
 use std::path::PathBuf;
+use std::str;
+use tokio::net::TcpStream;
 
-/*
-pub fn check_avail(clamd_tcp: Tcp) {
-    // Ping clamd to make sure the server is available and accepting TCP connections
-    let clamd_available = match ping(clamd_tcp) {
-        Ok(ping_response) => ping_response == clamav_client::PONG,
-        Err(_) => false,
-    };
+//const PING: &[u8; 6] = b"zPING\0";
+//const VERSION: &[u8; 9] = b"zVERSION\0";
+const INSTREAM: &[u8; 10] = b"zINSTREAM\0";
+const END_OF_STREAM: &[u8; 4] = &[0, 0, 0, 0];
+const DEFAULT_CHUNK_SIZE: usize = 4096;
 
-    if !clamd_available {
-        println!("Cannot ping clamd at {}", clamd_tcp.host_address);
-        return;
+#[tokio::main]
+pub async fn clam_scan(host: String, port: u16, file_path: PathBuf) -> Result<(), Box<dyn Error>> {
+    let mut file = File::open(file_path)?;
+    let mut buffer = vec![0; DEFAULT_CHUNK_SIZE];
+    let stream = TcpStream::connect(format!("{}:{}", host, port)).await?;
+
+    loop {
+        stream.writable().await?;
+
+        // Try to write data, this may still fail with `WouldBlock`
+        // if the readiness event is a false positive.
+        match stream.try_write(INSTREAM) {
+            Ok(n) => {
+                // TODO: implement logging
+                println!("write {} bytes", n);
+                loop {
+                    let len = file.read(&mut buffer[..])?;
+                    if len != 0 {
+                        stream.try_write(&(len as u32).to_be_bytes())?;
+                        stream.try_write(&buffer[..len])?;
+                    } else {
+                        stream.try_write(END_OF_STREAM)?;
+                        break;
+                    }
+                }
+                break;
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                continue;
+            }
+            Err(e) => {
+                return Err(e.into());
+            }
+        }
     }
-    assert!(clamd_available);
-}
-*/
 
-pub fn clam_scan(host: String, port: u16, file_path: PathBuf) {
-    // Scan file for viruses
-    let clamd_tcp = Tcp {
-        host_address: format!("{}:{}", host, port),
-    };
+    let mut response = vec![0; 1024];
 
-    let scan_file_response = scan_file(file_path, clamd_tcp, None).unwrap();
-    let file_clean = clean(&scan_file_response).unwrap();
-    if file_clean {
-        println!("No virus found");
-    } else {
-        println!("The file is infected!");
+    loop {
+        // Wait for the socket to be readable
+        stream.readable().await?;
+
+        // Try to read data, this may still fail with `WouldBlock`
+        // if the readiness event is a false positive.
+        match stream.try_read(&mut response) {
+            Ok(n) => {
+                println!("read {} bytes", n);
+                response.truncate(n);
+                break;
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                continue;
+            }
+            Err(e) => {
+                return Err(e.into());
+            }
+        }
     }
+
+    println!("{:?}", str::from_utf8(&response).unwrap());
+
+    Ok(())
 }

@@ -13,16 +13,8 @@ fn run() -> eyre::Result<()> {
 
     match args.command {
         cli::Commands::Scan(scan) => {
-            clam_scan(scan.address, scan.port, scan.file);
-        } /*
-          cli::Commands::Ping(ping) => {
-              let config =
-                  Config::read(&new.config).wrap_err("failed reading the gempost config file")?;
-
-              create_new_post(&config.posts_dir, &new.slug, new.title.as_deref())
-                  .wrap_err("failed creating new gemlog post")?;
-          }
-          */
+            clam_scan(scan.address, scan.port, scan.file).expect("cannot scan file");
+        }
     }
 
     Ok(())
