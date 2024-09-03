@@ -13,7 +13,7 @@ fn run() -> eyre::Result<()> {
 
     match args.command {
         cli::Commands::Scan(scan) => {
-            clam_scan(scan.host, scan.port, scan.file);
+            clam_scan(scan.address, scan.port, scan.file);
         } /*
           cli::Commands::Ping(ping) => {
               let config =
