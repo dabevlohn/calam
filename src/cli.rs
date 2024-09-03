@@ -13,11 +13,11 @@ pub struct Cli {
 pub struct Scan {
     /// The ClamAV service host name (String)
     #[arg(short, long)]
-    pub host: String,
+    pub address: String,
 
     /// The ClamAV service port (Number)
     #[arg(short, long)]
-    pub port: u8,
+    pub port: u16,
 
     /*
     /// The path of the calam config file

@@ -17,7 +17,7 @@ pub fn check_avail(clamd_tcp: Tcp) {
 }
 */
 
-pub fn clam_scan(host: String, port: u8, file_path: PathBuf) {
+pub fn clam_scan(host: String, port: u16, file_path: PathBuf) {
     // Scan file for viruses
     let clamd_tcp = Tcp {
         host_address: format!("{}:{}", host, port),
@@ -30,5 +30,5 @@ pub fn clam_scan(host: String, port: u8, file_path: PathBuf) {
     } else {
         println!("The file is infected!");
     }
-    assert!(!file_clean);
+    //assert!(!file_clean);
 }
