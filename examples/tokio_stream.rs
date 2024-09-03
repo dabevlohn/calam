@@ -2,7 +2,8 @@ use std::error::Error;
 use std::io;
 use tokio::net::TcpStream;
 
-const PING: &[u8; 6] = b"zPING\0";
+//const PING: &[u8; 6] = b"zPING\0";
+const VERSION: &[u8; 9] = b"zVERSION\0";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -15,7 +16,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         // Try to write data, this may still fail with `WouldBlock`
         // if the readiness event is a false positive.
-        match stream.try_write(PING) {
+        match stream.try_write(VERSION) {
             Ok(n) => {
                 println!("write {} bytes", n);
                 break;
