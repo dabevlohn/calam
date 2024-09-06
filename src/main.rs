@@ -1,7 +1,5 @@
-mod actor;
 mod cli;
 mod clmd;
-mod message;
 
 use eyre::Error;
 use std::process::ExitCode;
