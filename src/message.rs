@@ -36,7 +36,7 @@ impl FileOrder {
         };
         let _ = self.sender.send(message).await;
         match recv.await {
-            Ok(outcome) => println!("here is the outcome: {}", outcome),
+            Ok(outcome) => println!("FOUND: {}", outcome),
             Err(e) => println!("{}", e),
         }
     }
