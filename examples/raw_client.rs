@@ -8,7 +8,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let (reader, mut writer) = stream.split();
     println!("stream starting");
 
-    writer.write_all(b"zVERSION\0zPING\0").await?;
+    writer.write_all(b"zVERSION\0zPING\0\n").await?;
     //.write_all(b"BUY;8.0;BYND\nBUY;9.0;PLTR\nBUY;9.0;PLTR\nGET\n")
     println!("sent data");
 

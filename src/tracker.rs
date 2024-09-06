@@ -3,7 +3,7 @@ use tokio::sync::{mpsc, oneshot};
 
 #[derive(Debug, Clone)]
 pub enum Command {
-    BUY(String, f32),
+    INSTREAM(String, f32),
     VERSION,
     PING,
 }
@@ -60,7 +60,7 @@ impl TrackerActor {
 
     fn handle_message(&mut self, message: TrackerMessage) {
         match message.command {
-            Command::BUY(ticker, amount) => {
+            Command::INSTREAM(ticker, amount) => {
                 match self.db.get(ticker.as_str()) {
                     None => self.db.insert(ticker, amount),
                     Some(val) => self.db.insert(ticker, amount + val),

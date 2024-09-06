@@ -1,11 +1,13 @@
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
 mod message;
-use message::{BuyOrder, Message, OrderBookActor};
+use message::{FileOrder, Message, OrderBookActor};
 mod tracker;
 use tracker::{TrackerActor, TrackerMessage, VersionTrackerActor};
+
+const END_OF_STREAM: &[u8; 4] = &[0, 0, 0, 0];
 
 #[tokio::main]
 async fn main() {
@@ -38,7 +40,7 @@ async fn main() {
             let mut buf = vec![];
 
             loop {
-                match buf_reader.read_until(b'\0', &mut buf).await {
+                match buf_reader.read_to_end(&mut buf).await {
                     Ok(n) => {
                         if n == 0 {
                             println!("EOF received");
@@ -47,24 +49,23 @@ async fn main() {
 
                         let buf_string = String::from_utf8_lossy(&buf);
                         let data: Vec<String> = buf_string
-                            .split("z")
-                            .map(|x| x.to_string().replace("\0", ""))
+                            .split("\0")
+                            .map(|x| x.to_string().replace("\n", ""))
                             .collect();
                         println!("here is the data {:?}", data);
-                        let command = data[1].clone();
+                        let command = data[0].clone();
 
                         match command.as_str() {
-                            "BUY" => {
-                                println!("buy order command processed");
+                            "zINSTREAM" => {
+                                println!("file order command processed");
                                 //let amount = data[1].parse::<f32>().unwrap();
                                 let amount = 32.0;
                                 let order_actor =
-                                    BuyOrder::new("ticker".to_string(), amount, tx_one.clone());
-                                //    BuyOrder::new(data[2].clone(), amount, tx_one.clone());
+                                    FileOrder::new(data[4].clone(), amount, tx_one.clone());
                                 println!("{}: {}", order_actor.ticker, order_actor.amount);
                                 order_actor.send().await;
                             }
-                            "VERSION" => {
+                            "zVERSION" => {
                                 println!("get version command processed");
                                 let get_actor = VersionTrackerActor {
                                     sender: tracker_tx_two.clone(),
@@ -73,7 +74,7 @@ async fn main() {
                                 println!("sending back: {:?}", state);
                                 writer.write_all(state.as_bytes()).await.unwrap();
                             }
-                            "PING" => {
+                            "zPING" => {
                                 println!("PING command processed");
                                 writer.write_all(b"PONG\0").await.unwrap();
                             }

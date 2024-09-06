@@ -9,17 +9,17 @@ pub struct Message {
     pub respond_to: oneshot::Sender<u32>,
 }
 
-pub struct BuyOrder {
+pub struct FileOrder {
     pub order: String,
     pub ticker: String,
     pub amount: f32,
     pub sender: mpsc::Sender<Message>,
 }
 
-impl BuyOrder {
+impl FileOrder {
     pub(crate) fn new(ticker: String, amount: f32, sender: mpsc::Sender<Message>) -> Self {
         Self {
-            order: "BUY".to_string(),
+            order: "INSTREAM".to_string(),
             ticker,
             amount,
             sender,
@@ -80,7 +80,7 @@ impl OrderBookActor {
 
             let (send, _) = oneshot::channel();
             let tracker_message = TrackerMessage {
-                command: Command::BUY(message.ticker, message.amount),
+                command: Command::INSTREAM(message.ticker, message.amount),
                 respond_to: send,
             };
 
