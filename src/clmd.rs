@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::str;
+use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
 //const PING: &[u8; 6] = b"zPING\0";
@@ -15,7 +16,7 @@ const DEFAULT_CHUNK_SIZE: usize = 4096;
 pub async fn clam_scan(host: String, port: u16, file_path: PathBuf) -> Result<(), Box<dyn Error>> {
     let mut file = File::open(file_path)?;
     let mut buffer = vec![0; DEFAULT_CHUNK_SIZE];
-    let stream = TcpStream::connect(format!("{}:{}", host, port)).await?;
+    let mut stream = TcpStream::connect(format!("{}:{}", host, port)).await?;
 
     loop {
         stream.writable().await?;
@@ -33,6 +34,7 @@ pub async fn clam_scan(host: String, port: u16, file_path: PathBuf) -> Result<()
                         stream.try_write(&buffer[..len])?;
                     } else {
                         stream.try_write(END_OF_STREAM)?;
+                        stream.flush().await?;
                         break;
                     }
                 }
