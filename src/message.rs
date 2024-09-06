@@ -80,7 +80,7 @@ impl OrderBookActor {
 
             let (send, _) = oneshot::channel();
             let tracker_message = TrackerMessage {
-                command: Command::INSTREAM(message.ticker, message.amount),
+                command: Command::BUY(message.ticker, message.amount),
                 respond_to: send,
             };
 

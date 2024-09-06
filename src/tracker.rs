@@ -3,7 +3,8 @@ use tokio::sync::{mpsc, oneshot};
 
 #[derive(Debug, Clone)]
 pub enum Command {
-    INSTREAM(String, f32),
+    BUY(String, f32),
+    INSTREAM,
     VERSION,
     PING,
 }
@@ -60,19 +61,23 @@ impl TrackerActor {
 
     fn handle_message(&mut self, message: TrackerMessage) {
         match message.command {
-            Command::INSTREAM(ticker, amount) => {
+            Command::BUY(ticker, amount) => {
                 match self.db.get(ticker.as_str()) {
                     None => self.db.insert(ticker, amount),
                     Some(val) => self.db.insert(ticker, amount + val),
                 };
                 println!("db: {:?}", self.db);
             }
+            Command::INSTREAM => {
+                println!("INSTREAM");
+                self.send_state(message.respond_to);
+            }
             Command::VERSION => {
                 println!("ClamAV Version 1.0.6 Compatible");
                 self.send_state(message.respond_to);
             }
             Command::PING => {
-                println!("PING");
+                println!("PONG");
                 self.send_state(message.respond_to);
             }
         };

@@ -4,12 +4,14 @@ use tokio::net::TcpStream;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let mut stream = TcpStream::connect("127.0.0.1:3311").await?;
+    let mut stream = TcpStream::connect("127.0.0.1:3310").await?;
     let (reader, mut writer) = stream.split();
     println!("stream starting");
 
-    writer.write_all(b"zVERSION\0zPING\0\n").await?;
-    //.write_all(b"BUY;8.0;BYND\nBUY;9.0;PLTR\nBUY;9.0;PLTR\nGET\n")
+    writer.write_all(b"zVERSION\0").await?;
+    //writer
+    //    .write_all(b"BUY;8.0;BYND\0BUY;9.0;PLTR\0BUY;9.0;PLTR\0GET\0")
+    //    .await?;
     println!("sent data");
 
     let mut buf_reader = BufReader::new(reader);
