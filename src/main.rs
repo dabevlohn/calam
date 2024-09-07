@@ -37,7 +37,7 @@ async fn main() {
             println!("thread {} starting", peer.to_string());
             let (reader, mut writer) = stream.split();
             let mut total_bytes_read = vec![];
-            let bytes_to_read_per_attempt = 1024;
+            let bytes_to_read_per_attempt = 16;
             let mut read_attempt_nr = 0;
             let mut data: Vec<String> = vec![];
             let mut command = "zINSTREAM".to_string();
@@ -50,23 +50,24 @@ async fn main() {
                 let nr = match reader.try_read(&mut cur_buffer) {
                     Ok(nr) => {
                         if nr == 0 {
-                            println!("EOF received");
+                            println!("0000 EOF received");
                             break;
                         }
 
                         if read_attempt_nr == 1 {
                             let buf_string = String::from_utf8_lossy(&cur_buffer);
                             data = buf_string.split("\0").map(|x| x.to_string()).collect();
-                            println!("here is the data {:?}", data);
+                            println!("here is the data {:?}", data[0]);
                             command = data[0].clone();
                         }
-
                         nr
                     }
                     Err(ref e)
-                        if e.kind() == ErrorKind::WouldBlock || e.kind() == ErrorKind::TimedOut =>
+                        //if e.kind() == ErrorKind::WouldBlock || e.kind() == ErrorKind::TimedOut =>
+                        //if e.kind() == ErrorKind::WouldBlock =>
+                        if e.kind() == ErrorKind::TimedOut =>
                     {
-                        println!("Read attempt timed out");
+                        println!("--- Read attempt timed out");
                         // TODO: refactor with queues
                         //
                         match command.as_str() {
@@ -104,13 +105,14 @@ async fn main() {
                                 panic!("{} command not supported", command);
                             }
                         }
-                        break;
+                        return;
                     }
                     Err(e) => {
                         println!("Error receiving message: {}", e);
-                        break;
+                        return;
                     }
                 };
+                println!(">>> {}", nr);
                 cur_buffer.truncate(nr);
 
                 // TODO: save file and task in queue
