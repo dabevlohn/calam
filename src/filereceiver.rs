@@ -20,12 +20,9 @@ impl FileReceiver {
     pub async fn run(self) {
         println!("FileReceiver is running");
         while let Ok((mut stream, peer)) = self.socket.accept().await {
-            println!("Incoming connection from: {}", peer.to_string());
             let mut intf = self.filepath.clone();
             tokio::spawn(async move {
-                //println!("thread {} starting", peer.to_string());
                 let (reader, mut writer) = stream.split();
-                //let mut total_bytes_read = vec![];
                 let bytes_to_read_per_attempt = 128;
                 let mut read_attempt_nr = 0;
                 let mut command = "zINSTREAM".to_string();
@@ -60,7 +57,11 @@ impl FileReceiver {
                                 let last4 = cur_buffer.as_slice()[cur_buffer.len() - 4..].to_vec();
                                 cur_buffer.truncate(nr);
                                 match file.write_all(&cur_buffer).await {
-                                    Ok(()) => println!("chunk {} saved", read_attempt_nr),
+                                    Ok(()) => {
+                                        // TODO refactor with checksums
+                                        //
+                                        println!("chunk {} saved", read_attempt_nr);
+                                    }
                                     Err(e) => println!("Error saving file: {}", e),
                                 }
 
@@ -75,7 +76,6 @@ impl FileReceiver {
                             if e.kind() == ErrorKind::WouldBlock
                                 || e.kind() == ErrorKind::TimedOut =>
                         {
-                            //println!("Read attempt timed out");
                             break;
                         }
                         Err(e) => {
@@ -84,13 +84,12 @@ impl FileReceiver {
                         }
                     };
                 }
-                // TODO: refactor with queues
-                //
                 match command.as_str() {
                     "zINSTREAM" => {
-                        println!("file order command processed {}", peer.port().to_string());
                         let response = format!("stream: {} FOUND\0", peer.port().to_string());
                         writer.write_all(response.as_bytes()).await.unwrap();
+                        // TODO: refactor with queues
+                        //
                     }
                     "zVERSION" => {
                         writer
@@ -106,7 +105,6 @@ impl FileReceiver {
                     }
                 }
                 writer.flush().await.unwrap();
-                //println!("thread {} finishing", peer.to_string());
             });
         }
     }
