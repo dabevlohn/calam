@@ -1,4 +1,3 @@
-use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use tokio::io::{AsyncWriteExt, ErrorKind};
 use tokio::net::TcpListener;
@@ -12,42 +11,37 @@ pub struct FileReceiver {
 
 impl FileReceiver {
     pub fn new(socket: TcpListener, tempdir: PathBuf) -> Self {
-        // TODO: filepath from env
-        //
         Self {
             socket,
             filepath: tempdir,
         }
     }
 
-    async fn handle_filestream(&self, streamdata: Vec<u8>) {
-        let mut file = tokio::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .open("some_file")
-            .await
-            .unwrap();
-        println!("got file!");
-    }
-
     pub async fn run(self) {
         println!("FileReceiver is running");
         while let Ok((mut stream, peer)) = self.socket.accept().await {
             println!("Incoming connection from: {}", peer.to_string());
+            let mut intf = self.filepath.clone();
             tokio::spawn(async move {
-                println!("thread {} starting", peer.to_string());
+                //println!("thread {} starting", peer.to_string());
                 let (reader, mut writer) = stream.split();
-                let mut total_bytes_read = vec![];
-                let bytes_to_read_per_attempt = 1024;
+                //let mut total_bytes_read = vec![];
+                let bytes_to_read_per_attempt = 128;
                 let mut read_attempt_nr = 0;
                 let mut command = "zINSTREAM".to_string();
+                intf.push(format!("scan_it_{}", peer.port().to_string()));
+                let mut file = tokio::fs::OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .open(intf)
+                    .await
+                    .unwrap();
 
                 loop {
                     read_attempt_nr += 1;
-                    // println!("Read attempt nr {read_attempt_nr}");
                     let mut cur_buffer = vec![0; bytes_to_read_per_attempt];
 
-                    let nr = match reader.try_read(&mut cur_buffer) {
+                    match reader.try_read(&mut cur_buffer) {
                         Ok(nr) => {
                             if nr == 0 {
                                 println!("EOF received");
@@ -59,17 +53,23 @@ impl FileReceiver {
                                 let buf_string = String::from_utf8_lossy(&first10);
                                 let data: Vec<String> =
                                     buf_string.split("\0").map(|x| x.to_string()).collect();
-                                //println!("first attempt data {:?}", data[0]);
                                 command = data[0].clone();
                             }
 
-                            let last4 = cur_buffer.as_slice()[cur_buffer.len() - 4..].to_vec();
-                            if last4 == END_OF_STREAM && command.as_str() == "zINSTREAM" {
-                                println!("0000 EOF received");
-                                break;
-                            }
+                            if command.as_str() == "zINSTREAM" {
+                                let last4 = cur_buffer.as_slice()[cur_buffer.len() - 4..].to_vec();
+                                cur_buffer.truncate(nr);
+                                match file.write_all(&cur_buffer).await {
+                                    Ok(()) => println!("chunk {} saved", read_attempt_nr),
+                                    Err(e) => println!("Error saving file: {}", e),
+                                }
 
-                            nr
+                                if last4 == END_OF_STREAM {
+                                    println!("0000 EOF received");
+                                    // !!! No breaks needed !!!
+                                    //break;
+                                }
+                            }
                         }
                         Err(ref e)
                             if e.kind() == ErrorKind::WouldBlock
@@ -83,32 +83,22 @@ impl FileReceiver {
                             break;
                         }
                     };
-                    cur_buffer.truncate(nr);
-
-                    // TODO: save file and task in queue
-                    //
-                    total_bytes_read.append(&mut cur_buffer);
                 }
                 // TODO: refactor with queues
                 //
                 match command.as_str() {
                     "zINSTREAM" => {
-                        let mut hasher = Sha256::new();
-                        hasher.update(total_bytes_read);
-                        let hash = hasher.finalize();
-                        println!("file order command processed {:x}", hash);
-                        let response = format!("stream: {:x} FOUND\0", hash);
+                        println!("file order command processed {}", peer.port().to_string());
+                        let response = format!("stream: {} FOUND\0", peer.port().to_string());
                         writer.write_all(response.as_bytes()).await.unwrap();
                     }
                     "zVERSION" => {
-                        //println!("get version command processed");
                         writer
                             .write_all(b"ClamAV 1.0.6 compatible\0")
                             .await
                             .unwrap();
                     }
                     "zPING" => {
-                        println!("PING command processed");
                         writer.write_all(b"PONG\0").await.unwrap();
                     }
                     _ => {
@@ -116,10 +106,8 @@ impl FileReceiver {
                     }
                 }
                 writer.flush().await.unwrap();
-
-                println!("thread {} finishing", peer.to_string());
+                //println!("thread {} finishing", peer.to_string());
             });
-            //self.handle_filestream(total_bytes_read).await;
         }
     }
 }
