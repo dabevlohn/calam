@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use tokio::io::{AsyncWriteExt, ErrorKind};
 use tokio::net::TcpListener;
 
-const END_OF_STREAM: &[u8; 4] = &[0, 0, 0, 0];
+use super::END_OF_STREAM;
 
 pub struct FileReceiver {
     pub socket: TcpListener,

@@ -10,6 +10,21 @@ pub struct Cli {
 }
 
 #[derive(Args, Clone)]
+pub struct Scan {
+    /// The ClamAV service host name (String)
+    #[arg(short, long, default_value = "localhost")]
+    pub address: String,
+
+    /// The ClamAV service port (Number)
+    #[arg(short, long, default_value = "3310")]
+    pub port: u16,
+
+    /// The file to scan path
+    #[arg(short, long)]
+    pub file: PathBuf,
+}
+
+#[derive(Args, Clone)]
 pub struct FileReceiver {
     /// Receiver host name (String)
     #[arg(short, long, default_value = "localhost")]
@@ -19,16 +34,6 @@ pub struct FileReceiver {
     #[arg(short, long, default_value = "3310")]
     pub port: u16,
 
-    /*
-    /// The path of the calam config file
-    #[arg(
-        short,
-        long,
-        value_name = "CALAM_CONFIG_PATH",
-        default_value = "./calam.yaml"
-    )]
-    pub config: Option<PathBuf>,
-    */
     /// Path of temporary directory to save received files
     #[arg(short, long, default_value = "/tmp")]
     pub tempdir: PathBuf,
@@ -46,6 +51,10 @@ pub struct FileReceiver {
 pub enum Commands {
     /// Scan files
     ///
-    /// This send files to remote ClamAV service
+    /// This send file streams to remote ClamAV service
+    Scan(Scan),
+    /// File Receiver
+    ///
+    /// This accept file streams from remote ClamAV tool
     Fr(FileReceiver),
 }
