@@ -1,3 +1,4 @@
+use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use tokio::io::{AsyncWriteExt, ErrorKind};
 use tokio::net::TcpListener;
@@ -92,10 +93,12 @@ impl FileReceiver {
                 //
                 match command.as_str() {
                     "zINSTREAM" => {
-                        println!("file order command processed");
-                        // !!! Fictive response !!!
-                        //
-                        writer.write_all(b"stream: TASKNUMBER\0").await.unwrap();
+                        let mut hasher = Sha256::new();
+                        hasher.update(total_bytes_read);
+                        let hash = hasher.finalize();
+                        println!("file order command processed {:x}", hash);
+                        let response = format!("stream: {:x} FOUND\0", hash);
+                        writer.write_all(response.as_bytes()).await.unwrap();
                     }
                     "zVERSION" => {
                         //println!("get version command processed");
