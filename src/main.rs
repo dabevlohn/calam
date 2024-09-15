@@ -1,11 +1,15 @@
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
+use tokio::sync::mpsc;
 
 mod filereceiver;
 use filereceiver::FileReceiver;
 
 mod streamsender;
 use streamsender::StreamSender;
+
+mod trackeractor;
+use trackeractor::{TrackerActor, TrackerMessage};
 
 mod cli;
 use crate::cli::Cli;
@@ -17,14 +21,20 @@ use clap::Parser;
 const INSTREAM: &[u8; 10] = b"zINSTREAM\0";
 const END_OF_STREAM: &[u8; 4] = &[0, 0, 0, 0];
 
-async fn start() -> eyre::Result<()> {
+async fn start() {
     let args = Cli::parse();
 
     match args.command {
         cli::Commands::Fr(fr) => {
             let addr = format!("{}:{}", fr.address, fr.port).to_string();
             let socket = TcpListener::bind(&addr).await.unwrap();
-            FileReceiver::new(socket, fr.tempdir).run().await;
+            let (tracker_tx, tracker_rx) = mpsc::channel::<TrackerMessage>(1);
+            tokio::spawn(async {
+                TrackerActor::new(tracker_rx).run().await;
+            });
+            FileReceiver::new(socket, fr.tempdir)
+                .run(tracker_tx.clone())
+                .await;
         }
         cli::Commands::Scan(scan) => {
             let addr = format!("{}:{}", scan.address, scan.port).to_string();
@@ -32,12 +42,10 @@ async fn start() -> eyre::Result<()> {
             StreamSender::new(stream, scan.file).clam_scan().await;
         }
     }
-
-    Ok(())
 }
 
 #[tokio::main]
 async fn main() {
     pretty_env_logger::init();
-    start().await.unwrap();
+    start().await;
 }
