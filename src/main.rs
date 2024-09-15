@@ -16,7 +16,6 @@ use clap::Parser;
 //const VERSION: &[u8; 9] = b"zVERSION\0";
 const INSTREAM: &[u8; 10] = b"zINSTREAM\0";
 const END_OF_STREAM: &[u8; 4] = &[0, 0, 0, 0];
-const DEFAULT_CHUNK_SIZE: usize = 4096;
 
 async fn start() -> eyre::Result<()> {
     let args = Cli::parse();

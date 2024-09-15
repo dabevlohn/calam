@@ -23,7 +23,6 @@ impl FileReceiver {
             let mut intf = self.filepath.clone();
             tokio::spawn(async move {
                 let (reader, mut writer) = stream.split();
-                let bytes_to_read_per_attempt = 128;
                 let mut read_attempt_nr = 0;
                 let mut command = "zINSTREAM".to_string();
                 intf.push(format!("scan_it_{}", peer.port().to_string()));
@@ -36,7 +35,7 @@ impl FileReceiver {
 
                 loop {
                     read_attempt_nr += 1;
-                    let mut cur_buffer = vec![0; bytes_to_read_per_attempt];
+                    let mut cur_buffer = vec![0; 128];
 
                     match reader.try_read(&mut cur_buffer) {
                         Ok(nr) => {

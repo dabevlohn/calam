@@ -4,7 +4,7 @@ use std::str;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
-use super::{DEFAULT_CHUNK_SIZE, END_OF_STREAM, INSTREAM};
+use super::{END_OF_STREAM, INSTREAM};
 
 pub struct StreamSender {
     pub stream: TcpStream,
@@ -27,7 +27,7 @@ impl StreamSender {
                 Ok(_n) => {
                     // TODO: implement logging
                     //
-                    let mut buffer = vec![0; DEFAULT_CHUNK_SIZE];
+                    let mut buffer = vec![0; 128];
                     let mut file = tokio::fs::OpenOptions::new()
                         .write(false)
                         .read(true)
