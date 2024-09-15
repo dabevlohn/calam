@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use tokio::io::{AsyncWriteExt, ErrorKind};
 use tokio::net::TcpListener;
 
-use super::END_OF_STREAM;
+const END_OF_STREAM: &[u8; 4] = &[0, 0, 0, 0];
 
 pub struct FileReceiver {
     pub socket: TcpListener,
@@ -10,16 +10,22 @@ pub struct FileReceiver {
 }
 
 impl FileReceiver {
-    pub fn new(socket: TcpListener) -> Self {
+    pub fn new(socket: TcpListener, tempdir: PathBuf) -> Self {
         // TODO: filepath from env
         //
         Self {
             socket,
-            filepath: PathBuf::from("/tmp"),
+            filepath: tempdir,
         }
     }
 
-    fn handle_filestream(&mut self) {
+    async fn handle_filestream(&self, streamdata: Vec<u8>) {
+        let mut file = tokio::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open("some_file")
+            .await
+            .unwrap();
         println!("got file!");
     }
 
@@ -57,40 +63,11 @@ impl FileReceiver {
                             }
 
                             let last4 = cur_buffer.as_slice()[cur_buffer.len() - 4..].to_vec();
-                            if last4 == END_OF_STREAM {
+                            if last4 == END_OF_STREAM && command.as_str() == "zINSTREAM" {
                                 println!("0000 EOF received");
-                                // TODO: refactor with queues
-                                //
-                                match command.as_str() {
-                                    "zINSTREAM" => {
-                                        println!("file order command processed");
-                                        // !!! Fictive response !!!
-                                        //
-                                        //self.handle_filestream();
-                                        writer
-                                            .write_all(b"stream: Win.Test.EICAR_HDB-1 FOUND\0")
-                                            .await
-                                            .unwrap();
-                                    }
-                                    "zVERSION" => {
-                                        //println!("get version command processed");
-                                        writer
-                                            .write_all(b"ClamAV 1.0.6 compatible\0")
-                                            .await
-                                            .unwrap();
-                                    }
-                                    "zPING" => {
-                                        println!("PING command processed");
-                                        writer.write_all(b"PONG\0").await.unwrap();
-                                    }
-                                    _ => {
-                                        panic!("{} command not supported", command);
-                                    }
-                                }
-                                writer.flush().await.unwrap();
-
                                 break;
                             }
+
                             nr
                         }
                         Err(ref e)
@@ -111,9 +88,35 @@ impl FileReceiver {
                     //
                     total_bytes_read.append(&mut cur_buffer);
                 }
+                // TODO: refactor with queues
+                //
+                match command.as_str() {
+                    "zINSTREAM" => {
+                        println!("file order command processed");
+                        // !!! Fictive response !!!
+                        //
+                        writer.write_all(b"stream: TASKNUMBER\0").await.unwrap();
+                    }
+                    "zVERSION" => {
+                        //println!("get version command processed");
+                        writer
+                            .write_all(b"ClamAV 1.0.6 compatible\0")
+                            .await
+                            .unwrap();
+                    }
+                    "zPING" => {
+                        println!("PING command processed");
+                        writer.write_all(b"PONG\0").await.unwrap();
+                    }
+                    _ => {
+                        panic!("{} command not supported", command);
+                    }
+                }
+                writer.flush().await.unwrap();
 
                 println!("thread {} finishing", peer.to_string());
             });
+            //self.handle_filestream(total_bytes_read).await;
         }
     }
 }
