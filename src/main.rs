@@ -11,6 +11,8 @@ use streamsender::StreamSender;
 mod trackeractor;
 use trackeractor::{TrackerActor, TrackerMessage};
 
+mod indexingestor;
+
 mod cli;
 use crate::cli::Cli;
 
@@ -29,8 +31,10 @@ async fn start() {
             let addr = format!("{}:{}", fr.address, fr.port).to_string();
             let socket = TcpListener::bind(&addr).await.unwrap();
             let (tracker_tx, tracker_rx) = mpsc::channel::<TrackerMessage>(1);
-            tokio::spawn(async {
-                TrackerActor::new(tracker_rx).run().await;
+            tokio::spawn(async move {
+                TrackerActor::new(tracker_rx, fr.qwhost, fr.qwport)
+                    .run()
+                    .await;
             });
             FileReceiver::new(socket, fr.tempdir)
                 .run(tracker_tx.clone())

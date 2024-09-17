@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::fs;
 use tokio::sync::{mpsc, oneshot};
 
+use crate::indexingestor::{DocIngestor, Document};
+
 #[derive(Debug, Clone)]
 pub enum Status {
     NEW(String),
@@ -40,22 +42,39 @@ impl GetTrackerActor {
 pub struct TrackerActor {
     pub receiver: mpsc::Receiver<TrackerMessage>,
     pub db: HashMap<String, i8>,
+    pub qwhost: String,
+    pub qwport: u16,
 }
 
 impl TrackerActor {
-    pub fn new(receiver: mpsc::Receiver<TrackerMessage>) -> Self {
+    pub fn new(receiver: mpsc::Receiver<TrackerMessage>, qwhost: String, qwport: u16) -> Self {
         Self {
             receiver,
             db: HashMap::new(),
+            qwhost,
+            qwport,
         }
     }
 
-    fn check_file(&mut self, fileid: String, respond_to: oneshot::Sender<String>) {
+    async fn check_file(&mut self, fileid: String, respond_to: oneshot::Sender<String>) {
         let mut len: u64 = 0;
         match fs::metadata(fileid.as_str()) {
             Ok(x) => len = x.len(),
             Err(e) => println!("wrong path: {}", e),
         }
+        // TEST: send final status to QuickWit
+        //
+        let mut ingestor = DocIngestor::new(
+            self.qwhost.clone(),
+            self.qwport,
+            "scanned-files".to_string(),
+        );
+        let tivec: Vec<String> = fileid.split("_").map(|x| x.to_string()).collect();
+        let doc = Document::new(tivec[2].clone(), len);
+
+        ingestor.attach(Some(doc));
+        ingestor.send().await;
+
         let _ = respond_to.send(len.to_string());
     }
 
@@ -76,7 +95,7 @@ impl TrackerActor {
         let _ = respond_to.send(buffer.join(""));
     }
 
-    fn handle_message(&mut self, message: TrackerMessage) {
+    async fn handle_message(&mut self, message: TrackerMessage) {
         match message.command {
             Status::NEW(fileid) => {
                 println!("new file stream {}", fileid);
@@ -84,7 +103,7 @@ impl TrackerActor {
             }
             Status::SAVED(fileid) => {
                 println!("file {} saved", fileid);
-                self.check_file(fileid, message.respond_to);
+                self.check_file(fileid.to_owned(), message.respond_to).await;
                 // TODO: start KATA worker here
                 //
             }
@@ -112,7 +131,7 @@ impl TrackerActor {
     pub async fn run(mut self) {
         println!("tracker actor is running");
         while let Some(msg) = self.receiver.recv().await {
-            self.handle_message(msg);
+            self.handle_message(msg).await;
         }
     }
 }

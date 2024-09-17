@@ -12,7 +12,7 @@ ingest:
 
 # search query to QuickWit via REST API
 search:
-	curl 'http://localhost:7280/api/v1/scanned-files/search?query=type:file'
+	curl 'http://localhost:7280/api/v1/scanned-files/search?query=_type:file'
 
 # delete whole index from QuickWit
 delete:
