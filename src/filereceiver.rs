@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 use tokio::io::{AsyncWriteExt, ErrorKind};
 use tokio::net::TcpListener;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 
-use crate::trackeractor::{Status, TrackerMessage};
+use crate::trackeractor::{GetTrackerActor, Status, TrackerMessage};
 
 use super::END_OF_STREAM;
 
@@ -29,15 +29,14 @@ impl FileReceiver {
                 let (reader, mut writer) = stream.split();
                 let mut read_attempt_nr = 0;
                 let mut command = "zINSTREAM".to_string();
-
-                let (send, _) = oneshot::channel();
-                let tracker_message = TrackerMessage {
-                    command: Status::NEW(peer.port().to_string()),
-                    respond_to: send,
-                };
-                tx_one.send(tracker_message).await.unwrap();
-
                 intf.push(format!("scan_it_{}", peer.port().to_string()));
+
+                let get_actor = GetTrackerActor {
+                    sender: tx_one.clone(),
+                };
+                let fpath = intf.to_owned().into_os_string().into_string().unwrap();
+                get_actor.send(Status::NEW(fpath.to_owned())).await;
+
                 let mut file = tokio::fs::OpenOptions::new()
                     .write(true)
                     .create(true)
@@ -69,8 +68,6 @@ impl FileReceiver {
                                 cur_buffer.truncate(nr);
                                 match file.write_all(&cur_buffer).await {
                                     Ok(()) => {
-                                        // TODO refactor with checksums
-                                        //
                                         print!("{}..", read_attempt_nr);
                                     }
                                     Err(e) => println!("Error saving file: {}", e),
@@ -99,14 +96,11 @@ impl FileReceiver {
                     "zINSTREAM" => {
                         let response = format!("stream: {} FOUND\0", peer.port().to_string());
                         writer.write_all(response.as_bytes()).await.unwrap();
-                        // TODO: refactor with queues
-                        //
-                        let (send, _) = oneshot::channel();
-                        let tracker_message = TrackerMessage {
-                            command: Status::SAVED(peer.port().to_string()),
-                            respond_to: send,
+                        let get_actor = GetTrackerActor {
+                            sender: tx_one.clone(),
                         };
-                        tx_one.send(tracker_message).await.unwrap();
+                        let fsize = get_actor.send(Status::SAVED(fpath)).await;
+                        println!("file size: {:?}", fsize);
                     }
                     "zVERSION" => {
                         writer
@@ -122,17 +116,13 @@ impl FileReceiver {
                     }
                 }
                 writer.flush().await.unwrap();
-            });
 
-            // TODO: get all statuses
-            //
-            let (send, _) = oneshot::channel();
-            let tracker_message = TrackerMessage {
-                command: Status::GETALL,
-                respond_to: send,
-            };
-            let state = tx.send(tracker_message).await.unwrap();
-            println!("state-----{:?}", state);
+                let get_actor = GetTrackerActor {
+                    sender: tx_one.clone(),
+                };
+                let state = get_actor.send(Status::GETALL).await;
+                println!("statuses: {:?}", state);
+            });
         }
     }
 }

@@ -38,13 +38,13 @@ pub struct FileReceiver {
     #[arg(short, long, default_value = "/tmp")]
     pub tempdir: PathBuf,
 
-    /// MQTT Broker hostname
+    /// QuickWit hostname
     #[arg(long, default_value = "localhost")]
-    pub brokerhost: String,
+    pub qwhost: String,
 
-    /// MQTT Broker port
-    #[arg(long, default_value = "1883")]
-    pub brokerport: u16,
+    /// QuickWit port
+    #[arg(long, default_value = "7280")]
+    pub qwport: u16,
 }
 
 #[derive(Subcommand, Clone)]
