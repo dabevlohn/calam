@@ -1,0 +1,19 @@
+# create QuickWit index from configuration yaml-file via REST API
+create:
+	curl -XPOST -H 'Content-Type: application/yaml' \
+		'http://localhost:7280/api/v1/indexes' --data-binary \
+		@schemaless_index_config.yaml
+
+# ingest data to QuickWit index from json-file via REST API 
+ingest:
+	curl -XPOST -H 'Content-Type: application/json' \
+		'http://localhost:7280/api/v1/scanned-files/ingest?commit=force' \
+		--data-binary @data_to_index.json 
+
+# search query to QuickWit via REST API
+search:
+	curl 'http://localhost:7280/api/v1/scanned-files/search?query=type:file'
+
+# delete whole index from QuickWit
+delete:
+	curl -XDELETE 'http://localhost:7280/api/v1/indexes/scanned-files'
