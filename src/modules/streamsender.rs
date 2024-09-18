@@ -4,7 +4,10 @@ use std::str;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
-use super::{END_OF_STREAM, INSTREAM};
+//const PING: &[u8; 6] = b"zPING\0";
+//const VERSION: &[u8; 9] = b"zVERSION\0";
+const INSTREAM: &[u8; 10] = b"zINSTREAM\0";
+const END_OF_STREAM: &[u8; 4] = &[0, 0, 0, 0];
 
 pub struct StreamSender {
     pub stream: TcpStream,

@@ -10,11 +10,6 @@ use modules::filereceiver::FileReceiver;
 use modules::streamsender::StreamSender;
 use modules::trackeractor::{TrackerActor, TrackerMessage};
 
-//const PING: &[u8; 6] = b"zPING\0";
-//const VERSION: &[u8; 9] = b"zVERSION\0";
-const INSTREAM: &[u8; 10] = b"zINSTREAM\0";
-const END_OF_STREAM: &[u8; 4] = &[0, 0, 0, 0];
-
 async fn start() {
     let args = Cli::parse();
 

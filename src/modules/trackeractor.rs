@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use tokio::sync::{mpsc, oneshot};
 
-use crate::indexingestor::{DocIngestor, Document};
+use super::indexingestor::{DocIngestor, Document};
 
 #[derive(Debug, Clone)]
 pub enum Status {
