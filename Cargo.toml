@@ -2,7 +2,7 @@
 name = "calam"
 version = "0.1.0"
 edition = "2021"
-description = "A simple CLI tool to send file to clamd"
+description = "Calam is a standalone service for files and messages inspection. It has modular architecture and can be extended for your personal needs."
 authors = ["Aran Varun <vir@tue.su>"]
 homepage = "https://github.com/verbasu/calam"
 repository = "https://github.com/verbasu/calam"
@@ -13,12 +13,22 @@ categories = ["command-line-utilities"]
 rust-version = "1.74.0"
 
 [dependencies]
-eyre = "0.6.11"
 clap = { version = "4.4.13", features = ["derive"] }
-color-eyre = "0.6.3"
-thiserror = "1.0.56"
 tokio = { version = "1.40.0", features = ["fs", "io-util", "net",
-"rt-multi-thread", "macros"] }
+"rt-multi-thread", "sync", "macros"] }
+error-chain = "0.12.4"
+serde = { version = "1.0.210", features = ["derive"] }
+reqwest = { version = "0.12.7", features = ["json"] }
+chrono = "0.4.38"
+
+[dev-dependencies]
+pretty_env_logger = "0.5.0"
+thiserror = "1.0.56"
+color-eyre = "0.6.3"
+eyre = "0.6.11"
+json = "0.12.4"
+rumqttc = "0.24.0"
+serde_json = "1.0.128"
 
 [lints.rust]
 unsafe_code = "forbid"

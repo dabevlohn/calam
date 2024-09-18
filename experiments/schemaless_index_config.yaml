@@ -1,0 +1,6 @@
+version: 0.7
+index_id: scanned-files
+doc_mapping:
+  mode: dynamic
+indexing_settings:
+  commit_timeout_secs: 30
