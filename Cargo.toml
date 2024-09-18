@@ -2,7 +2,7 @@
 name = "calam"
 version = "0.1.0"
 edition = "2021"
-description = "A simple CLI tool to send file to clamd"
+description = "Calam is a standalone service for files and messages inspection. It has modular architecture and can be extended for your personal needs."
 authors = ["Aran Varun <vir@tue.su>"]
 homepage = "https://github.com/verbasu/calam"
 repository = "https://github.com/verbasu/calam"

@@ -11,11 +11,11 @@ pub struct Cli {
 
 #[derive(Args, Clone)]
 pub struct Scan {
-    /// The ClamAV service host name (String)
+    /// The ClamAV service or FileReceiver host name (String)
     #[arg(short, long, default_value = "localhost")]
     pub address: String,
 
-    /// The ClamAV service port (Number)
+    /// The ClamAV service or FileReceiver port (Number)
     #[arg(short, long, default_value = "3310")]
     pub port: u16,
 
@@ -49,11 +49,12 @@ pub struct FileReceiver {
 
 #[derive(Subcommand, Clone)]
 pub enum Commands {
-    /// Scan files
+    /// Send filestreams to a clamd-analog service - FileReceiver (need to run it before)
     ///
-    /// This send file streams to remote ClamAV service
+    /// This send file streams to a remote ClamAV service or a FileReceiver
     Scan(Scan),
-    /// File Receiver
+    /// Run a FileReceiver node that saves stream to file, put it to local filesystem or S3-storage and
+    /// post it to several DLP systems via REST API. Scan results will be pushed into a QuickWit index.
     ///
     /// This accept file streams from remote ClamAV tool
     Fr(FileReceiver),
