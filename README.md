@@ -22,3 +22,4 @@ calam scan -a localhost -p 3310 -f /path/to/file/eicar.com
 ## Components
 
 ![Components](docs/images/comp_diag_1.svg)
+

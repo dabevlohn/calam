@@ -51,7 +51,7 @@ impl FileReceiver {
                     match reader.try_read(&mut cur_buffer) {
                         Ok(nr) => {
                             if nr == 0 {
-                                println!("EOF received");
+                                //println!("EOF received");
                                 break;
                             }
 
@@ -68,14 +68,16 @@ impl FileReceiver {
                                 cur_buffer.truncate(nr);
                                 match file.write_all(&cur_buffer).await {
                                     Ok(()) => {
-                                        print!("{}..", read_attempt_nr);
+                                        //print!("{}..", read_attempt_nr);
+                                        continue;
                                     }
                                     Err(e) => println!("Error saving file: {}", e),
                                 }
 
                                 if last4 == END_OF_STREAM {
-                                    println!("0000 EOF received");
+                                    continue;
                                     // !!! No breaks needed !!!
+                                    //println!("0000 EOF received");
                                     //break;
                                 }
                             }

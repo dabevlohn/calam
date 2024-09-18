@@ -2,7 +2,6 @@ use chrono::Local;
 use error_chain::error_chain;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 
 error_chain! {
     foreign_links {
