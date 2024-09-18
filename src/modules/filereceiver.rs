@@ -3,9 +3,7 @@ use tokio::io::{AsyncWriteExt, ErrorKind};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
-use crate::trackeractor::{GetTrackerActor, Status, TrackerMessage};
-
-use super::END_OF_STREAM;
+use super::trackeractor::{GetTrackerActor, Status, TrackerMessage};
 
 pub struct FileReceiver {
     pub socket: TcpListener,
@@ -64,7 +62,7 @@ impl FileReceiver {
                             }
 
                             if command.as_str() == "zINSTREAM" {
-                                let last4 = cur_buffer.as_slice()[cur_buffer.len() - 4..].to_vec();
+                                //let last4 = cur_buffer.as_slice()[cur_buffer.len() - 4..].to_vec();
                                 cur_buffer.truncate(nr);
                                 match file.write_all(&cur_buffer).await {
                                     Ok(()) => {
@@ -72,13 +70,6 @@ impl FileReceiver {
                                         continue;
                                     }
                                     Err(e) => println!("Error saving file: {}", e),
-                                }
-
-                                if last4 == END_OF_STREAM {
-                                    continue;
-                                    // !!! No breaks needed !!!
-                                    //println!("0000 EOF received");
-                                    //break;
                                 }
                             }
                         }
