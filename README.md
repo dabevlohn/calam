@@ -1,5 +1,9 @@
 # Calam
 
+<p align="center">
+  <img src="https://github.com/verbasu/calam/blob/master/docs/images/calam_logo.png?raw=true" alt="Calam Logo"/>
+</p>
+
 Calam is a standalone service for files and messages inspection. It has modular architecture and can be extended for your personal needs.
 
 _Usage_: `calam <COMMAND>`
