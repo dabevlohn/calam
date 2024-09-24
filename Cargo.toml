@@ -18,8 +18,9 @@ tokio = { version = "1.40.0", features = ["fs", "io-util", "net",
 "rt-multi-thread", "sync", "macros"] }
 error-chain = "0.12.4"
 serde = { version = "1.0.210", features = ["derive"] }
-reqwest = { version = "0.12.7", features = ["json"] }
+reqwest = { version = "0.12.7", features = ["json", "multipart", "stream"] }
 chrono = "0.4.38"
+tokio-util = { version = "0.7.12", features = ["codec"] }
 
 [dev-dependencies]
 pretty_env_logger = "0.5.0"

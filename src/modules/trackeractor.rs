@@ -1,8 +1,20 @@
+use ::std::error::Error;
+use ::std::fmt::{Display, Formatter, Result as FmtResult};
+use ::std::io::Error as IoError;
+use reqwest::{
+    multipart::{Form, Part},
+    Body, Client,
+};
 use std::collections::HashMap;
 use std::fs;
+use tokio::fs::File;
 use tokio::sync::{mpsc, oneshot};
+use tokio_util::codec::{BytesCodec, FramedRead};
 
 use super::indexingestor::{DocIngestor, Document};
+
+const KATA_ENDPOINT: &str = "https://0x0.st/";
+const SI_ENDPOINT: &str = "https://0x0.st/";
 
 #[derive(Debug, Clone)]
 pub enum Status {
@@ -44,6 +56,7 @@ pub struct TrackerActor {
     pub db: HashMap<String, i8>,
     pub qwhost: String,
     pub qwport: u16,
+    client: Client,
 }
 
 impl TrackerActor {
@@ -53,6 +66,7 @@ impl TrackerActor {
             db: HashMap::new(),
             qwhost,
             qwport,
+            client: Client::new(),
         }
     }
 
@@ -104,14 +118,28 @@ impl TrackerActor {
             Status::SAVED(fileid) => {
                 println!("file {} saved", fileid);
                 self.check_file(fileid.to_owned(), message.respond_to).await;
-                // TODO: start KATA worker here
-                //
+
+                match self.send_file_for_checking(KATA_ENDPOINT, fileid).await {
+                    Err(TrackerError(msg)) => {
+                        println!("KATA error: {msg}");
+                    }
+                    Ok(result) => {
+                        println!("KATA result: {result}");
+                    }
+                };
             }
             Status::SENDTOKT(fileid) => {
                 println!("file {} posted to KATA", fileid);
-                self.update_state(fileid, message.respond_to);
-                // TODO: start SI worker here
-                //
+                self.update_state(fileid.to_owned(), message.respond_to);
+
+                match self.send_file_for_checking(SI_ENDPOINT, fileid).await {
+                    Err(TrackerError(msg)) => {
+                        println!("SI error: {msg}");
+                    }
+                    Ok(result) => {
+                        println!("SI result: {result}");
+                    }
+                };
             }
             Status::SENDTOSI(fileid) => {
                 println!("file {} posted to SearchInform", fileid);
@@ -133,5 +161,48 @@ impl TrackerActor {
         while let Some(msg) = self.receiver.recv().await {
             self.handle_message(msg).await;
         }
+    }
+
+    async fn send_file_for_checking(
+        &self,
+        endpoint: &str,
+        fpath: String,
+    ) -> Result<String, TrackerError> {
+        let file = File::open(fpath).await?;
+
+        let stream = FramedRead::new(file, BytesCodec::new());
+        let stream_body = Body::wrap_stream(stream);
+
+        let stream_part = Part::stream(stream_body);
+        let form = Form::new().part("file", stream_part);
+
+        let response = self.client.post(endpoint).multipart(form).send().await?;
+
+        let result = response.text().await?;
+
+        Ok(result)
+    }
+}
+
+#[derive(Debug)]
+pub struct TrackerError(pub String);
+
+impl Display for TrackerError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        write!(f, "MyError: {}", self.0)
+    }
+}
+
+impl Error for TrackerError {}
+
+impl From<IoError> for TrackerError {
+    fn from(err: IoError) -> Self {
+        TrackerError(format!("{} ({})", err, err.kind()))
+    }
+}
+
+impl From<reqwest::Error> for TrackerError {
+    fn from(err: reqwest::Error) -> Self {
+        TrackerError(err.to_string())
     }
 }
