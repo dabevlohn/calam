@@ -21,3 +21,7 @@ delete:
 # run QuickWit with Podman
 runindex:
 	podman run -p 7280:7280 quickwit:v0.8.2 run
+
+# run Calam filereceiver with Podman
+calamfr:
+	podman run -p 3310:3310 --network=host calam:v0.1.0 fr --qwhost 192.168.1.68
