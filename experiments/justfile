@@ -1,7 +1,7 @@
 # create QuickWit index from configuration yaml-file via REST API
 create:
 	curl -XPOST -H 'Content-Type: application/yaml' \
-		'http://192.168.1.68:7280/api/v1/indexes' --data-binary \
+		'http://localhost:7280/api/v1/indexes' --data-binary \
 		@schemaless_index_config.yaml
 
 # ingest data to QuickWit index from json-file via REST API 
