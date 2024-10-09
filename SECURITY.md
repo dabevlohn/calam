@@ -10,4 +10,4 @@
 
 ## Reporting a Vulnerability
 
-liberachat: verbasu
+IRC channet #calam at libera.chat
