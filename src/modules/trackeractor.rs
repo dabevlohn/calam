@@ -1,29 +1,14 @@
-use ::std::error::Error;
-use ::std::fmt::{Display, Formatter, Result as FmtResult};
-use ::std::io::Error as IoError;
-use reqwest::{
-    multipart::{Form, Part},
-    Body, Client,
-};
 use std::collections::HashMap;
 use std::fs;
-use tokio::fs::File;
 use tokio::sync::{mpsc, oneshot};
-use tokio_util::codec::{BytesCodec, FramedRead};
-
-use super::indexingestor::{DocIngestor, Document};
-
-const KATA_ENDPOINT: &str = "https://0x0.st/";
-const SI_ENDPOINT: &str = "https://0x0.st/";
 
 #[derive(Debug, Clone)]
 pub enum Status {
-    NEW(String),
-    SAVED(String),
-    SENDTOKT(String),
-    SENDTOSI(String),
-    GET(String),
-    GETALL,
+    New(String),
+    Saved(String),
+    SendToKt(String),
+    GotFromKt(String),
+    GetAll,
 }
 
 pub struct TrackerMessage {
@@ -45,7 +30,7 @@ impl GetTrackerActor {
 
         let _ = self.sender.send(tracker_message).await;
         match recv.await {
-            Ok(state) => return state,
+            Ok(state) => state,
             Err(e) => panic!("{}", e),
         }
     }
@@ -54,19 +39,13 @@ impl GetTrackerActor {
 pub struct TrackerActor {
     pub receiver: mpsc::Receiver<TrackerMessage>,
     pub db: HashMap<String, i8>,
-    pub qwhost: String,
-    pub qwport: u16,
-    client: Client,
 }
 
 impl TrackerActor {
-    pub fn new(receiver: mpsc::Receiver<TrackerMessage>, qwhost: String, qwport: u16) -> Self {
+    pub fn new(receiver: mpsc::Receiver<TrackerMessage>) -> Self {
         Self {
             receiver,
             db: HashMap::new(),
-            qwhost,
-            qwport,
-            client: Client::new(),
         }
     }
 
@@ -76,18 +55,6 @@ impl TrackerActor {
             Ok(x) => len = x.len(),
             Err(e) => println!("wrong path: {}", e),
         }
-        // TEST: send final status to QuickWit
-        //
-        let mut ingestor = DocIngestor::new(
-            self.qwhost.clone(),
-            self.qwport,
-            "scanned-files".to_string(),
-        );
-        let tivec: Vec<String> = fileid.split("_").map(|x| x.to_string()).collect();
-        let doc = Document::new(tivec[2].clone(), len);
-
-        ingestor.attach(Some(doc));
-        ingestor.send().await;
 
         let _ = respond_to.send(len.to_string());
     }
@@ -97,7 +64,7 @@ impl TrackerActor {
             None => self.db.insert(fileid, 1),
             Some(val) => self.db.insert(fileid, val + 1),
         };
-        let _ = respond_to.send("OK".to_string());
+        let _ = respond_to.send("Status updated".to_string());
     }
 
     fn get_all_states(&self, respond_to: oneshot::Sender<String>) {
@@ -111,45 +78,23 @@ impl TrackerActor {
 
     async fn handle_message(&mut self, message: TrackerMessage) {
         match message.command {
-            Status::NEW(fileid) => {
+            Status::New(fileid) => {
                 println!("new file stream {}", fileid);
                 self.update_state(fileid, message.respond_to);
             }
-            Status::SAVED(fileid) => {
+            Status::Saved(fileid) => {
                 println!("file {} saved", fileid);
                 self.check_file(fileid.to_owned(), message.respond_to).await;
-
-                match self.send_file_for_checking(KATA_ENDPOINT, fileid).await {
-                    Err(TrackerError(msg)) => {
-                        println!("KATA error: {msg}");
-                    }
-                    Ok(result) => {
-                        println!("KATA result: {result}");
-                    }
-                };
             }
-            Status::SENDTOKT(fileid) => {
+            Status::SendToKt(fileid) => {
                 println!("file {} posted to KATA", fileid);
                 self.update_state(fileid.to_owned(), message.respond_to);
-
-                match self.send_file_for_checking(SI_ENDPOINT, fileid).await {
-                    Err(TrackerError(msg)) => {
-                        println!("SI error: {msg}");
-                    }
-                    Ok(result) => {
-                        println!("SI result: {result}");
-                    }
-                };
             }
-            Status::SENDTOSI(fileid) => {
-                println!("file {} posted to SearchInform", fileid);
-                self.update_state(fileid, message.respond_to);
+            Status::GotFromKt(fileid) => {
+                println!("file {} scanned by KATA", fileid);
+                self.update_state(fileid.to_owned(), message.respond_to);
             }
-            Status::GET(fileid) => {
-                println!("get file {} status", fileid);
-                self.update_state(fileid, message.respond_to);
-            }
-            Status::GETALL => {
+            Status::GetAll => {
                 println!("get all files status");
                 self.get_all_states(message.respond_to);
             }
@@ -161,48 +106,5 @@ impl TrackerActor {
         while let Some(msg) = self.receiver.recv().await {
             self.handle_message(msg).await;
         }
-    }
-
-    async fn send_file_for_checking(
-        &self,
-        endpoint: &str,
-        fpath: String,
-    ) -> Result<String, TrackerError> {
-        let file = File::open(fpath).await?;
-
-        let stream = FramedRead::new(file, BytesCodec::new());
-        let stream_body = Body::wrap_stream(stream);
-
-        let stream_part = Part::stream(stream_body);
-        let form = Form::new().part("file", stream_part);
-
-        let response = self.client.post(endpoint).multipart(form).send().await?;
-
-        let result = response.text().await?;
-
-        Ok(result)
-    }
-}
-
-#[derive(Debug)]
-pub struct TrackerError(pub String);
-
-impl Display for TrackerError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "MyError: {}", self.0)
-    }
-}
-
-impl Error for TrackerError {}
-
-impl From<IoError> for TrackerError {
-    fn from(err: IoError) -> Self {
-        TrackerError(format!("{} ({})", err, err.kind()))
-    }
-}
-
-impl From<reqwest::Error> for TrackerError {
-    fn from(err: reqwest::Error) -> Self {
-        TrackerError(err.to_string())
     }
 }

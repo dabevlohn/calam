@@ -27,10 +27,10 @@ impl StreamSender {
             // Try to write data, this may still fail with `WouldBlock`
             // if the readiness event is a false positive.
             match self.stream.try_write(INSTREAM) {
-                Ok(_n) => {
+                Ok(_) => {
                     // TODO: implement logging
                     //
-                    let mut buffer = vec![0; 128];
+                    let mut buffer = [0; 128];
                     let mut file = tokio::fs::OpenOptions::new()
                         .write(false)
                         .read(true)
@@ -52,7 +52,7 @@ impl StreamSender {
                                 .unwrap();
                             self.stream.write_all(&buffer[..len]).await.unwrap();
                         }
-                        println!("write {} bytes", len);
+                        // println!("write {} bytes", len);
                     }
 
                     break;
