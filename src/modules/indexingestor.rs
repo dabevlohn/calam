@@ -1,17 +1,10 @@
 use chrono::Local;
-use error_chain::error_chain;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-error_chain! {
-    foreign_links {
-        HttpRequest(reqwest::Error);
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Response {
-    num_docs_for_processing: i8,
+    pub num_docs_for_processing: i8,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -19,31 +12,37 @@ pub struct Document {
     taskid: i32,
     _type: String,
     size: u64,
-    finished: bool,
+    finished: Option<i64>,
     infected: bool,
     received: i64,
 }
 
 impl Document {
-    pub fn new(taskid: String, size: u64) -> Self {
+    pub fn new(taskid: String) -> Self {
         Self {
             // TODO: implement several types
             //
             _type: "file".to_string(),
             taskid: taskid.parse::<i32>().unwrap(),
-            size,
+            size: 0,
             infected: false,
-            finished: false,
             received: Local::now().timestamp(),
+            finished: None,
         }
+    }
+    pub fn update_size(&mut self, size: String) {
+        self.size = size.parse::<u64>().unwrap();
+    }
+    pub fn finish(&mut self) {
+        self.finished = Some(Local::now().timestamp());
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum IngestionStatus {
-    SUCCESS,
-    FAIL,
-    QUEUED,
+    Success,
+    Fail,
+    Queued,
 }
 
 pub struct DocIngestor {
@@ -53,13 +52,13 @@ pub struct DocIngestor {
 }
 
 impl DocIngestor {
-    pub fn new(qwhost: String, qwport: u16, index_name: String) -> Self {
+    pub fn new(qwhost: &str, qwport: &u16, index_name: String) -> Self {
         Self {
             indexer: format!(
                 "http://{}:{}/api/v1/{}/ingest?commit=force",
                 qwhost, qwport, index_name
             ),
-            status: IngestionStatus::QUEUED,
+            status: IngestionStatus::Queued,
             document: None,
         }
     }
@@ -68,18 +67,17 @@ impl DocIngestor {
     }
 
     pub async fn send(&mut self) -> Response {
-        //let document_body = json!({});
         let response = Client::new().post(&self.indexer).json(&self.document);
         match response.send().await {
             Ok(r) => {
-                self.status = IngestionStatus::SUCCESS;
-                return r.json::<Response>().await.unwrap();
+                self.status = IngestionStatus::Success;
+                r.json::<Response>().await.unwrap()
             }
             Err(_) => {
-                self.status = IngestionStatus::FAIL;
-                return Response {
+                self.status = IngestionStatus::Fail;
+                Response {
                     num_docs_for_processing: 0,
-                };
+                }
             }
         }
     }

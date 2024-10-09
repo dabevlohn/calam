@@ -22,7 +22,8 @@ create:
 
 # search query to QuickWit via REST API
 search:
-	curl 'http://127.0.0.1:7280/api/v1/scanned-files/search?query=_type:file'
+	curl \
+	"http://127.0.0.1:7280/api/v1/scanned-files/search?query=_type:file"
 
 # run Calam filereceiver with  Podman
 calamfr:

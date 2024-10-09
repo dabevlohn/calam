@@ -51,7 +51,7 @@ fn publish(client: Client) {
     // Send ten messages with lengths ranging from 0 to 9, each message's QoS being at least once
     for i in 0..1000_usize {
         let payload = i.to_string();
-        let topic = format!("files/todo");
+        let topic = "files/todo".to_string();
         let qos = QoS::AtLeastOnce;
 
         client.publish(topic, qos, false, payload).unwrap();

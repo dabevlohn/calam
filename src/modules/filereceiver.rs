@@ -1,7 +1,8 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Duration};
 use tokio::io::{AsyncWriteExt, ErrorKind};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
+use tokio::time;
 
 use super::trackeractor::{GetTrackerActor, Status, TrackerMessage};
 
@@ -27,17 +28,18 @@ impl FileReceiver {
                 let (reader, mut writer) = stream.split();
                 let mut read_attempt_nr = 0;
                 let mut command = "zINSTREAM".to_string();
-                intf.push(format!("scan_it_{}", peer.port().to_string()));
+                intf.push(format!("scan_it_{}", peer.port()));
 
                 let get_actor = GetTrackerActor {
                     sender: tx_one.clone(),
                 };
                 let fpath = intf.to_owned().into_os_string().into_string().unwrap();
-                get_actor.send(Status::NEW(fpath.to_owned())).await;
+                get_actor.send(Status::New(fpath.to_owned())).await;
 
                 let mut file = tokio::fs::OpenOptions::new()
                     .write(true)
                     .create(true)
+                    .append(true)
                     .open(intf)
                     .await
                     .unwrap();
@@ -87,13 +89,25 @@ impl FileReceiver {
                 }
                 match command.as_str() {
                     "zINSTREAM" => {
-                        let response = format!("stream: {} FOUND\0", peer.port().to_string());
+                        let response = format!("stream: {} FOUND\0", peer.port());
                         writer.write_all(response.as_bytes()).await.unwrap();
                         let get_actor = GetTrackerActor {
                             sender: tx_one.clone(),
                         };
-                        let fsize = get_actor.send(Status::SAVED(fpath)).await;
-                        println!("file size: {:?}", fsize);
+                        let fsize = get_actor.send(Status::Saved(fpath.to_owned())).await;
+                        println!("file size: {:?}", fsize.to_owned());
+
+                        let fp1 = fpath.clone();
+                        tokio::spawn(async move {
+                            // time::sleep(Duration::from_secs(2)).await;
+                            DlpWorker::new().send_file_to_kata(fp1).await
+                        });
+                        tokio::spawn(async move {
+                            time::sleep(Duration::from_secs(4)).await;
+                            let mut scans = Scans::new();
+                            scans.get().await;
+                            scans.perform().await;
+                        });
                     }
                     "zVERSION" => {
                         writer
@@ -113,7 +127,7 @@ impl FileReceiver {
                 let get_actor = GetTrackerActor {
                     sender: tx_one.clone(),
                 };
-                let state = get_actor.send(Status::GETALL).await;
+                let state = get_actor.send(Status::GetAll).await;
                 println!("statuses: {:?}", state);
             });
         }
