@@ -1,6 +1,15 @@
+use ::std::error::Error;
+use ::std::fmt::{Display, Formatter, Result as FmtResult};
+use ::std::io::Error as IoError;
+use reqwest::{
+    multipart::{Form, Part},
+    Body, Client,
+};
 use std::collections::HashMap;
 use std::fs;
+use tokio::fs::File;
 use tokio::sync::{mpsc, oneshot};
+use tokio_util::codec::{BytesCodec, FramedRead};
 
 #[derive(Debug, Clone)]
 pub enum Status {
@@ -106,5 +115,48 @@ impl TrackerActor {
         while let Some(msg) = self.receiver.recv().await {
             self.handle_message(msg).await;
         }
+    }
+
+    async fn send_file_for_checking(
+        &self,
+        endpoint: &str,
+        fpath: String,
+    ) -> Result<String, TrackerError> {
+        let file = File::open(fpath).await?;
+
+        let stream = FramedRead::new(file, BytesCodec::new());
+        let stream_body = Body::wrap_stream(stream);
+
+        let stream_part = Part::stream(stream_body);
+        let form = Form::new().part("file", stream_part);
+
+        let response = self.client.post(endpoint).multipart(form).send().await?;
+
+        let result = response.text().await?;
+
+        Ok(result)
+    }
+}
+
+#[derive(Debug)]
+pub struct TrackerError(pub String);
+
+impl Display for TrackerError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        write!(f, "MyError: {}", self.0)
+    }
+}
+
+impl Error for TrackerError {}
+
+impl From<IoError> for TrackerError {
+    fn from(err: IoError) -> Self {
+        TrackerError(format!("{} ({})", err, err.kind()))
+    }
+}
+
+impl From<reqwest::Error> for TrackerError {
+    fn from(err: reqwest::Error) -> Self {
+        TrackerError(err.to_string())
     }
 }

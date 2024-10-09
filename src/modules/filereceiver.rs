@@ -4,8 +4,6 @@ use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 use tokio::time;
 
-use crate::modules::dlpworker::{DlpWorker, Scans};
-
 use super::trackeractor::{GetTrackerActor, Status, TrackerMessage};
 
 pub struct FileReceiver {
