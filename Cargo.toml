@@ -8,7 +8,7 @@ rust-version = "1.74.0"
 
 [dependencies]
 clap = { version = "4.4.13", features = ["derive"] }
-tokio = { version = "1.40.0", features = ["fs", "io-util", "net", "rt-multi-thread", "sync", "macros"] }
+tokio = { version = "1.43.1", features = ["fs", "io-util", "net", "rt-multi-thread", "sync", "macros"] }
 error-chain = "0.12.4"
 serde = { version = "1.0.210", features = ["derive"] }
 reqwest = { version = "0.12.7", default-features = false, features = ["json", "multipart", "stream", "rustls-tls"] }
